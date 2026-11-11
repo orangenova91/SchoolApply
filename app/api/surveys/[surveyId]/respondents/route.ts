@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { findDistributableSurvey } from "@/lib/distribution-access";
-import { existingStudentNos, listRespondents, replaceRoster } from "@/lib/respondents";
-import { deleteResponses, respondedStudentNos } from "@/lib/responses";
+import { deleteRespondentsBySurvey, existingStudentNos, listRespondents, replaceRoster } from "@/lib/respondents";
+import { countResponses, deleteResponses, respondedStudentNos } from "@/lib/responses";
 import { isStudentNoFormat, parseRosterInput } from "@/lib/roster";
 import { getSessionFromRequest } from "@/lib/session";
 import { ensureDistributionToken, setStudentNoFormat } from "@/lib/surveys";
@@ -62,5 +62,44 @@ export async function PUT(request: Request, context: RouteContext) {
   } catch (error) {
     console.error("roster save failed:", error);
     return NextResponse.json({ error: "명단을 저장하지 못했습니다." }, { status: 503 });
+  }
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  const confirmRemoval = new URL(request.url).searchParams.get("confirm") === "1";
+  const { surveyId } = await context.params;
+  try {
+    const access = await findDistributableSurvey(session, surveyId);
+    if (access.error) return access.error;
+    if (access.survey.status === "open") {
+      return NextResponse.json(
+        { error: "신청 중에는 명단을 삭제할 수 없습니다. 먼저 마감하거나 준비 상태로 되돌려 주세요." },
+        { status: 409 },
+      );
+    }
+    if (access.survey.status === "assigned") {
+      return NextResponse.json({ error: "배정이 끝난 조사는 명단을 삭제할 수 없습니다." }, { status: 409 });
+    }
+
+    const responseCount = await countResponses(surveyId);
+    if (responseCount > 0 && !confirmRemoval) {
+      return NextResponse.json(
+        { error: `제출된 응답 ${responseCount}건도 함께 삭제됩니다.`, needsConfirm: true },
+        { status: 409 },
+      );
+    }
+
+    const removed = (await existingStudentNos(surveyId)).length;
+    await deleteRespondentsBySurvey(surveyId);
+    await deleteResponses(surveyId);
+    return NextResponse.json({ removed, deletedResponses: responseCount });
+  } catch (error) {
+    console.error("roster delete failed:", error);
+    return NextResponse.json({ error: "명단을 삭제하지 못했습니다." }, { status: 503 });
   }
 }
