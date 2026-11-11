@@ -9,6 +9,7 @@ const STEPS = [
   { key: "form", label: "설문지 양식", path: "/form" },
   { key: "distribute", label: "설문 배포", path: "/distribute" },
   { key: "results", label: "응답 확인", path: "/results" },
+  { key: "assign", label: "반 편성", path: "/assign" },
 ] as const;
 
 function currentStepIndex(pathname: string) {

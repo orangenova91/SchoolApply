@@ -249,12 +249,22 @@ export function ResultsView({
           <p className="text-sm text-zinc-500">
             응답 {results.submitted}/{results.total}명 · 갱신 {formatClock(generatedAt)}
           </p>
-          <Link
-            href={`/surveys/${surveyId}/distribute`}
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            ← 이전: 설문 배포
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href={`/surveys/${surveyId}/distribute`}
+              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              ← 이전: 설문 배포
+            </Link>
+            {status === "closed" || status === "assigned" ? (
+              <Link
+                href={`/surveys/${surveyId}/assign`}
+                className="rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800"
+              >
+                다음: 반 편성 →
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
 

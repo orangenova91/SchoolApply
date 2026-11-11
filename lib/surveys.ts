@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Collection, Document, Filter } from "mongodb";
 import type { SurveyArrangement } from "@/lib/arrangement";
+import type { SurveyAssignment } from "@/lib/assignment";
 import { getDb } from "@/lib/mongodb";
 import type { PublishedSurvey } from "@/lib/published-survey";
 import { deleteRespondentsBySurvey } from "@/lib/respondents";
@@ -18,9 +19,10 @@ export type SurveyDocument = Survey & {
   form?: SurveyForm;
   distribution?: SurveyDistribution;
   published?: PublishedSurvey;
+  assignment?: SurveyAssignment;
 };
 
-const SURVEY_PROJECTION = { _id: 0, arrangement: 0, form: 0, distribution: 0, published: 0 } as const;
+const SURVEY_PROJECTION = { _id: 0, arrangement: 0, form: 0, distribution: 0, published: 0, assignment: 0 } as const;
 
 declare global {
   var _surveyIndexesPromise: Promise<unknown> | undefined;
@@ -146,7 +148,7 @@ export async function getSurveyByToken(token: string) {
   await closeExpiredSurveys(collection, { "distribution.token": token });
   return collection.findOne(
     { "distribution.token": token },
-    { projection: { _id: 0, arrangement: 0, form: 0 } },
+    { projection: { _id: 0, arrangement: 0, form: 0, assignment: 0 } },
   );
 }
 
@@ -190,6 +192,34 @@ export async function setCloseSchedule(ownerId: string, id: string, closesAt: st
 export async function saveSurveyForm(ownerId: string, id: string, form: SurveyForm): Promise<boolean> {
   const collection = await surveysCollection();
   const result = await collection.updateOne({ ownerId, id }, { $set: { form } });
+  return result.matchedCount > 0;
+}
+
+export async function getSurveyAssignment(ownerId: string, id: string): Promise<SurveyAssignment | null> {
+  const collection = await surveysCollection();
+  const document = await collection.findOne({ ownerId, id }, { projection: { _id: 0, assignment: 1 } });
+  return document?.assignment ?? null;
+}
+
+/** 반 편성은 마감한 조사에서만 바꾼다. 확정(배정 완료)한 뒤에는 확정을 풀어야 고칠 수 있다. */
+export async function saveSurveyAssignment(ownerId: string, id: string, assignment: SurveyAssignment): Promise<boolean> {
+  const collection = await surveysCollection();
+  const result = await collection.updateOne({ ownerId, id, status: "closed" }, { $set: { assignment } });
+  return result.matchedCount > 0;
+}
+
+/** 확정하면 배정 완료 상태가 되어 응답 수정과 반 편성 변경이 잠긴다. */
+export async function setAssignmentConfirmed(ownerId: string, id: string, confirmed: boolean): Promise<boolean> {
+  const collection = await surveysCollection();
+  const result = confirmed
+    ? await collection.updateOne(
+        { ownerId, id, status: "closed", assignment: { $exists: true } },
+        { $set: { status: "assigned", "assignment.confirmedAt": new Date().toISOString() } },
+      )
+    : await collection.updateOne(
+        { ownerId, id, status: "assigned" },
+        { $set: { status: "closed" }, $unset: { "assignment.confirmedAt": "" } },
+      );
   return result.matchedCount > 0;
 }
 
