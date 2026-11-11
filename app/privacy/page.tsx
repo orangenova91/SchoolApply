@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { KAKAO_INQUIRY_URL } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "개인정보처리방침 · 스쿨어플라이(SchoolApply)",
@@ -40,6 +41,23 @@ export default function PrivacyPage() {
             <p>
               계정 신청 정보는 발급 또는 반려 후 1년간 보관합니다. 계정과 조사 자료는 이용자가
               삭제를 요청하기 전까지 보관합니다. 세션 쿠키는 최대 30일이며 로그아웃하면 삭제됩니다.
+            </p>
+          </section>
+          <section className="flex flex-col gap-2">
+            <h2 className="text-base font-semibold text-zinc-900">4. 문의처</h2>
+            <p>
+              개인정보 열람·정정·삭제 요청과 서비스 문의는 카카오톡 채널로 접수해 주세요. 학생은
+              담당 선생님께 먼저 문의해 주세요.
+              <br />
+              카카오톡 문의:{" "}
+              <a
+                href={KAKAO_INQUIRY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-zinc-900 underline underline-offset-2"
+              >
+                pf.kakao.com/_dxfKSX
+              </a>
             </p>
           </section>
         </div>
