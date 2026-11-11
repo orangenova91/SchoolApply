@@ -1,32 +1,52 @@
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
-import { blockLabel, teacherCount } from "@/lib/assignment";
 import { loadAssignmentContext } from "@/lib/assignment-data";
-import { classKey, classLabel } from "@/lib/roster";
+import {
+  ASSIGNMENT_TABLES,
+  assignmentClasses,
+  buildAssignmentTable,
+  buildRosterTablesBySection,
+  isAssignmentTableType,
+  type AssignmentTableFilter,
+  type AssignmentTableSource,
+} from "@/lib/assignment-tables";
+import type { ResultTable } from "@/lib/result-tables";
+import { classLabel } from "@/lib/roster";
 import { getSessionFromRequest } from "@/lib/session";
 
 type RouteContext = {
   params: Promise<{ surveyId: string }>;
 };
 
-const UNPLACED_REASON = { closed: "개설 안 함", conflict: "시간 겹침·자리 없음" } as const;
+const SHEET_NAME_MAX = 31;
 
-function addSheet(
-  workbook: ExcelJS.Workbook,
-  name: string,
-  columns: { header: string; width: number }[],
-  rows: (string | number)[][],
-  frozenColumns = 0,
-) {
-  const sheet = workbook.addWorksheet(name, { views: [{ state: "frozen", ySplit: 1, xSplit: frozenColumns }] });
-  sheet.columns = columns;
-  for (const row of rows) sheet.addRow(row);
+/** 엑셀 시트 이름은 31자 이내, \ / ? * [ ] : 를 쓸 수 없고 서로 달라야 한다. */
+function sheetName(workbook: ExcelJS.Workbook, name: string) {
+  const base = name.replace(/[\\/?*[\]:]/g, " ").trim().slice(0, SHEET_NAME_MAX) || "시트";
+  let candidate = base;
+  for (let index = 2; workbook.getWorksheet(candidate); index += 1) {
+    const suffix = ` (${index})`;
+    candidate = `${base.slice(0, SHEET_NAME_MAX - suffix.length)}${suffix}`;
+  }
+  return candidate;
+}
+
+function addTableSheet(workbook: ExcelJS.Workbook, name: string, table: ResultTable) {
+  const sheet = workbook.addWorksheet(sheetName(workbook, name), {
+    views: [{ state: "frozen", ySplit: 1, xSplit: table.frozenColumns }],
+  });
+  sheet.columns = table.columns.map((column) => ({ header: column.label, width: column.width ?? 12 }));
+  for (const row of table.rows) sheet.addRow(row);
   const header = sheet.getRow(1);
   header.font = { bold: true };
   header.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEDE9FE" } };
-  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: table.columns.length } };
 }
 
+/**
+ * type이 없으면 표 4개를 시트로 담은 전체 파일. type이 있으면 그 표만 term·section·class로 거른다.
+ * split=1이면 반별 명단을 반마다 시트로 나눈다.
+ */
 export async function GET(request: Request, context: RouteContext) {
   const session = await getSessionFromRequest(request);
   if (!session) {
@@ -39,116 +59,50 @@ export async function GET(request: Request, context: RouteContext) {
   if (!data.published || !data.assignment) {
     return NextResponse.json({ error: "반 편성 결과가 없습니다." }, { status: 409 });
   }
-  const { survey, published, results, assignment } = data;
-  const { settings, sections, unplaced } = assignment;
-  const nameByStudent = new Map(results.students.map((student) => [student.studentNo, student.name]));
-  const subjectName = new Map(
-    published.questions.flatMap((question) => question.subjects.map((subject) => [subject.id, subject.subject])),
-  );
-  const termLabel = new Map(settings.terms.map((term) => [term.id, term.label]));
-  const ordered = settings.terms.flatMap((term) =>
-    sections
-      .filter((section) => section.termId === term.id)
-      .sort((left, right) => left.block - right.block || left.label.localeCompare(right.label, "ko")),
-  );
+  const { survey, published, students, assignment } = data;
+  const source: AssignmentTableSource = { published, students, assignment };
+
+  const params = new URL(request.url).searchParams;
+  const type = params.get("type");
+  if (type !== null && !isAssignmentTableType(type)) {
+    return NextResponse.json({ error: "내려받을 종류를 확인해 주세요." }, { status: 400 });
+  }
+  const term = assignment.settings.terms.find((item) => item.id === params.get("term"));
+  const section = assignment.sections.find((item) => item.id === params.get("section"));
+  const requestedClass = params.get("class") ?? "";
+  const classKey = assignmentClasses(students).includes(requestedClass) ? requestedClass : "";
+  const filter: AssignmentTableFilter = { termId: term?.id, sectionId: section?.id, classKey: classKey || undefined };
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "스쿨어플라이(SchoolApply)";
+  let filenameBase = "반편성";
 
-  addSheet(
-    workbook,
-    "개설 현황",
-    [
-      { header: "학기", width: 10 },
-      { header: "블록", width: 8 },
-      { header: "반", width: 24 },
-      { header: "과목", width: 22 },
-      { header: "인원", width: 8 },
-      { header: "최대 인원", width: 10 },
-      { header: "과목 교사 수", width: 12 },
-    ],
-    ordered.map((section) => [
-      termLabel.get(section.termId) ?? "",
-      blockLabel(section.block),
-      section.label,
-      subjectName.get(section.subjectId) ?? "",
-      section.studentNos.length,
-      settings.maxSize,
-      teacherCount(settings, section.subjectId),
-    ]),
-  );
-
-  addSheet(
-    workbook,
-    "반별 명단",
-    [
-      { header: "학기", width: 10 },
-      { header: "블록", width: 8 },
-      { header: "반", width: 24 },
-      { header: "학번", width: 10 },
-      { header: "이름", width: 12 },
-      { header: "학급", width: 12 },
-    ],
-    ordered.flatMap((section) =>
-      section.studentNos.map((studentNo) => [
-        termLabel.get(section.termId) ?? "",
-        blockLabel(section.block),
-        section.label,
-        studentNo,
-        nameByStudent.get(studentNo) ?? "",
-        classLabel(classKey(studentNo)),
-      ]),
-    ),
-  );
-
-  const slots = settings.terms.flatMap((term) =>
-    Array.from({ length: term.blockCount }, (_, block) => ({ termId: term.id, block, header: `${term.label} ${blockLabel(block)}` })),
-  );
-  const sectionAt = new Map<string, string>();
-  for (const section of sections) {
-    for (const studentNo of section.studentNos) sectionAt.set(`${studentNo}|${section.termId}|${section.block}`, section.label);
+  if (params.get("split") === "1") {
+    const tables = buildRosterTablesBySection(source, term?.id);
+    const termLabel = new Map(assignment.settings.terms.map((item) => [item.id, item.label]));
+    for (const item of tables) {
+      const prefix = term ? "" : `${termLabel.get(item.section.termId) ?? ""} `;
+      addTableSheet(workbook, `${prefix}${item.section.label}`, item.table);
+    }
+    if (tables.length === 0) addTableSheet(workbook, "반별 명단", buildAssignmentTable("rosters", source, filter));
+    filenameBase = `반별명단_반별시트${term ? `_${term.label}` : ""}`;
+  } else if (type) {
+    const info = ASSIGNMENT_TABLES.find((table) => table.type === type)!;
+    addTableSheet(workbook, info.label, buildAssignmentTable(type, source, filter));
+    const detail =
+      info.filter === "class"
+        ? classKey && classLabel(classKey)
+        : section
+          ? section.label
+          : term?.label;
+    filenameBase = `${info.filename}${detail ? `_${detail.replace(/\s/g, "")}` : ""}`;
+  } else {
+    for (const info of ASSIGNMENT_TABLES) addTableSheet(workbook, info.label, buildAssignmentTable(info.type, source));
   }
-  addSheet(
-    workbook,
-    "학생별 수강표",
-    [
-      { header: "학번", width: 10 },
-      { header: "이름", width: 12 },
-      { header: "학급", width: 12 },
-      ...slots.map((slot) => ({ header: slot.header, width: 20 })),
-    ],
-    results.students
-      .filter((student) => student.state === "submitted")
-      .map((student) => [
-        student.studentNo,
-        student.name,
-        classLabel(student.classKey),
-        ...slots.map((slot) => sectionAt.get(`${student.studentNo}|${slot.termId}|${slot.block}`) ?? ""),
-      ]),
-    2,
-  );
-
-  addSheet(
-    workbook,
-    "미배정",
-    [
-      { header: "학기", width: 10 },
-      { header: "학번", width: 10 },
-      { header: "이름", width: 12 },
-      { header: "과목", width: 22 },
-      { header: "사유", width: 20 },
-    ],
-    unplaced.map((item) => [
-      termLabel.get(item.termId) ?? "",
-      item.studentNo,
-      nameByStudent.get(item.studentNo) ?? "",
-      subjectName.get(item.subjectId) ?? "",
-      UNPLACED_REASON[item.reason],
-    ]),
-  );
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const filename = `반편성_${survey.grade}학년_${survey.semester}학기_${survey.round}차.xlsx`;
+  const draft = survey.status === "assigned" ? "" : "_미확정";
+  const filename = `${filenameBase}_${survey.grade}학년_${survey.semester}학기_${survey.round}차${draft}.xlsx`;
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

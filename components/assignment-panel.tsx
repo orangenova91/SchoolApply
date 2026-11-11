@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { AssignmentExportModal } from "@/components/assignment-export-modal";
 import { TrackBadge } from "@/components/subject-shared";
 import { STATUS_BADGE } from "@/components/survey-status-controls";
 import {
@@ -544,6 +545,7 @@ export function AssignmentPanel({
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<"solve" | "save" | "confirm" | "unconfirm" | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const editable = status === "closed";
   const confirmed = status === "assigned";
@@ -913,9 +915,9 @@ export function AssignmentPanel({
               </>
             ) : null}
             {assignment && !dirty ? (
-              <a href={`/api/surveys/${surveyId}/assignment/export`} className={OUTLINE_BUTTON}>
+              <button type="button" onClick={() => setExportOpen(true)} className={OUTLINE_BUTTON}>
                 엑셀 내려받기
-              </a>
+              </button>
             ) : null}
             {assignment && editable && !dirty ? (
               <button
@@ -935,6 +937,17 @@ export function AssignmentPanel({
           </div>
         </div>
       </div>
+      {exportOpen && assignment && !dirty ? (
+        <AssignmentExportModal
+          surveyId={surveyId}
+          published={published}
+          students={students}
+          assignment={assignment}
+          confirmed={confirmed}
+          problemCount={check?.problems.length ?? 0}
+          onClose={() => setExportOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
