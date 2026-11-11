@@ -11,9 +11,8 @@ import {
   TEACHER_ROLES,
 } from "@/lib/account-request-input";
 import { MANUAL_SCHOOL_TYPES, SCHOOL_SIDOS } from "@/lib/school-meta";
+import { KAKAO_INQUIRY_URL } from "@/lib/contact";
 import type { NeisSchoolOption } from "@/lib/types";
-
-const KAKAO_INQUIRY_URL = "http://pf.kakao.com/_dGxexaX";
 
 const INPUT_CLASS =
   "w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200";

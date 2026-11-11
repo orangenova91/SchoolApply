@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/login-form";
 import { APP_VERSION } from "@/lib/app-version";
+import { KAKAO_INQUIRY_URL } from "@/lib/contact";
 import { getServerSession } from "@/lib/session";
 
 export default async function LoginPage() {
@@ -30,12 +31,22 @@ export default async function LoginPage() {
           <p className="mt-2 text-sm text-zinc-600">학교명과 비밀번호로 로그인해 주세요.</p>
         </header>
         <LoginForm />
-        <Link
-          href="/apply"
-          className="text-sm font-medium text-zinc-600 underline underline-offset-2 transition hover:text-zinc-900"
-        >
-          계정 신청하기
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/apply"
+            className="text-sm font-medium text-zinc-600 underline underline-offset-2 transition hover:text-zinc-900"
+          >
+            계정 신청하기
+          </Link>
+          <a
+            href={KAKAO_INQUIRY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-zinc-600 underline underline-offset-2 transition hover:text-zinc-900"
+          >
+            문의하기
+          </a>
+        </div>
       </main>
     </div>
   );
