@@ -18,7 +18,7 @@ export default async function SurveyFlowLayout({
 
   const { arrangement, form, published } = await getSurveyFlow(session.accountId, surveyId);
   const formStep = !arrangement?.completedAt ? 0 : isFormCompleted(form, arrangement.groups) ? 2 : 1;
-  const reachedStep = published ? 3 : formStep;
+  const reachedStep = !published ? formStep : survey.status === "closed" || survey.status === "assigned" ? 4 : 3;
   const surveyLabel = [
     survey.school,
     `${survey.academicYear}학년도`,

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import { DistributionStatusCard } from "@/components/distribution-status-card";
 import { SlipPrintModal } from "@/components/slip-print-modal";
@@ -296,10 +297,12 @@ export function DistributionPanel({
   qrDataUrl: string;
   initialRespondents: RespondentView[];
 }) {
+  const router = useRouter();
   const [respondents, setRespondents] = useState(initialRespondents);
   const [studentNoFormat, setStudentNoFormat] = useState(initialFormat);
   const [importing, setImporting] = useState(initialRespondents.length === 0);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [classFilter, setClassFilter] = useState("");
   const [showCodes, setShowCodes] = useState(false);
@@ -357,6 +360,50 @@ export function DistributionPanel({
     }
   }
 
+  async function deleteRoster(confirmRemoval = false) {
+    if (
+      !confirmRemoval &&
+      !window.confirm(`학생 ${respondents.length}명의 명단과 접속 코드를 모두 삭제할까요? 되돌릴 수 없습니다.`)
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setMessage(null);
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/respondents${confirmRemoval ? "?confirm=1" : ""}`, {
+        method: "DELETE",
+      });
+      const data = (await response.json()) as {
+        removed?: number;
+        deletedResponses?: number;
+        error?: string;
+        needsConfirm?: boolean;
+      };
+      if (data.needsConfirm && !confirmRemoval) {
+        setDeleting(false);
+        if (window.confirm(`${data.error} 계속할까요?`)) await deleteRoster(true);
+        return;
+      }
+      if (!response.ok) {
+        setMessage({ tone: "error", text: data.error ?? "명단을 삭제하지 못했습니다." });
+        return;
+      }
+      setRespondents([]);
+      setImporting(true);
+      setClassFilter("");
+      setShowCodes(false);
+      setMessage({
+        tone: "ok",
+        text: `명단을 삭제했습니다. 학생 ${data.removed ?? 0}명${data.deletedResponses ? ` · 응답 ${data.deletedResponses}건` : ""}`,
+      });
+      router.refresh();
+    } catch {
+      setMessage({ tone: "error", text: "명단을 삭제하지 못했습니다. 네트워크 연결을 확인해 주세요." });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function reissue(studentNos: string[], label: string) {
     if (!window.confirm(`${label}의 접속 코드를 다시 발급할까요? 이전 코드는 바로 쓸 수 없게 됩니다.`)) return;
     setMessage(null);
@@ -411,13 +458,30 @@ export function DistributionPanel({
             </p>
           </div>
           {respondents.length > 0 && !importing ? (
-            <button
-              type="button"
-              onClick={() => setImporting(true)}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-            >
-              명단 다시 올리기
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setImporting(true)}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+              >
+                명단 다시 올리기
+              </button>
+              <button
+                type="button"
+                disabled={deleting || status === "open" || status === "assigned"}
+                title={
+                  status === "open"
+                    ? "신청 중에는 삭제할 수 없습니다"
+                    : status === "assigned"
+                      ? "배정이 끝난 조사는 삭제할 수 없습니다"
+                      : undefined
+                }
+                onClick={() => deleteRoster()}
+                className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "삭제 중…" : "명단 삭제"}
+              </button>
+            </div>
           ) : null}
         </div>
 
