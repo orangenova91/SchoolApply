@@ -18,6 +18,8 @@ export type Survey = {
   round: SurveyRound;
   note: string;
   status: SurveyStatus;
+  /** 외부 timetable_form 엑셀에서 조사·응답을 한 번에 만든 경우 */
+  origin?: "timetable_import";
   createdAt: string;
   /** 예약 마감 시각. 이 시각이 지나면 신청 중인 조사는 마감된다. */
   closesAt?: string;

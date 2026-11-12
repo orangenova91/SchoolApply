@@ -36,7 +36,7 @@ export default async function SurveyPage({
             학생이 고를 과목 수(선택수)를 정합니다.
           </p>
         </header>
-        {locked ? <EditLockNotice surveyId={survey.id} /> : null}
+        {locked ? <EditLockNotice surveyId={survey.id} imported={survey.origin === "timetable_import"} /> : null}
         <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0">
           <SubjectArrangement
             catalog={catalog}

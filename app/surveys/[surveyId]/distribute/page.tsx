@@ -54,6 +54,7 @@ export default async function SurveyDistributePage({
           timing={surveyTiming(survey)}
           hasPublished={published !== null}
           responseCount={responseCount}
+          imported={survey.origin === "timetable_import"}
         />
       </main>
     </div>

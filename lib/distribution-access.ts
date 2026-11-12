@@ -18,6 +18,13 @@ export async function findDistributableSurvey(session: SessionPayload, surveyId:
   return { survey, arrangement, form };
 }
 
+/** 엑셀에서 가져온 조사는 명단과 응답이 한 묶음이라 명단만 바꾸거나 지울 수 없다. */
+export function importedRosterLocked(survey: { origin?: string }) {
+  return survey.origin === "timetable_import"
+    ? NextResponse.json({ error: "엑셀에서 가져온 조사는 명단을 바꿀 수 없습니다." }, { status: 409 })
+    : null;
+}
+
 export function originFromHeaders(headers: Headers) {
   const host = headers.get("x-forwarded-host") ?? headers.get("host") ?? "localhost:3000";
   const forwardedProto = headers.get("x-forwarded-proto");

@@ -100,7 +100,9 @@ export function ResultsView({
   published,
   results,
   generatedAt,
+  imported = false,
 }: {
+  imported?: boolean;
   surveyId: string;
   status: SurveyStatus;
   timing: SurveyTiming;
@@ -140,8 +142,14 @@ export function ResultsView({
             >
               {refreshing ? "불러오는 중…" : "새로고침"}
             </button>
-            <CloseScheduleButton surveyId={surveyId} status={status} timing={timing} />
-            <SurveyCloseButtons surveyId={surveyId} status={status} timing={timing} counts={results} />
+            {imported ? (
+              <span className="rounded-lg bg-violet-50 px-3 py-1.5 text-sm font-medium text-violet-700">엑셀에서 가져옴</span>
+            ) : (
+              <>
+                <CloseScheduleButton surveyId={surveyId} status={status} timing={timing} />
+                <SurveyCloseButtons surveyId={surveyId} status={status} timing={timing} counts={results} />
+              </>
+            )}
           </div>
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -41,6 +41,12 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const access = await findDistributableSurvey(session, surveyId);
     if (access.error) return access.error;
+    if (access.survey.origin === "timetable_import") {
+      return NextResponse.json(
+        { error: "엑셀에서 가져온 조사는 배포 상태를 바꿀 수 없습니다." },
+        { status: 409 },
+      );
+    }
 
     let published;
     if (action === "open") {
