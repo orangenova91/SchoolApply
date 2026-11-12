@@ -38,6 +38,7 @@ export default async function SurveyResultsPage({
           published={published}
           results={results}
           generatedAt={new Date().toISOString()}
+          imported={survey.origin === "timetable_import"}
         />
       </main>
     </div>

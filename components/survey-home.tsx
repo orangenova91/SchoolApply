@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { TimetableImportModal } from "@/components/timetable-import-modal";
 import {
   MAX_SURVEY_NOTE,
   STATUS_LABEL,
@@ -43,6 +44,7 @@ export function SurveyHome({
   const [deleteTarget, setDeleteTarget] = useState<Survey | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [listError, setListError] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
 
   const availableRounds = useMemo(() => {
     const year = Number(academicYear);
@@ -216,6 +218,19 @@ export function SurveyHome({
             </p>
           ) : null}
         </form>
+        <div className="mt-5 border-t border-zinc-100 pt-5">
+          <p className="text-sm font-medium text-zinc-800">이미 조사한 결과가 있나요?</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            timetable_form 엑셀을 가져오면 앞 단계를 거치지 않고 바로 반 편성을 시작할 수 있습니다.
+          </p>
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="mt-3 w-full rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-700 hover:bg-violet-100"
+          >
+            조사 결과 가져오기
+          </button>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -284,6 +299,17 @@ export function SurveyHome({
             setListError("");
           }}
           onConfirm={() => void handleDelete()}
+        />
+      ) : null}
+      {importOpen ? (
+        <TimetableImportModal
+          surveys={surveys}
+          initialAcademicYear={academicYear}
+          initialGrade={grade}
+          initialSemester={semester}
+          initialRound={round}
+          onCreated={(survey) => setSurveys((current) => [survey, ...current])}
+          onClose={() => setImportOpen(false)}
         />
       ) : null}
     </div>

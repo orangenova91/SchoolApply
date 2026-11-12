@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { findDistributableSurvey } from "@/lib/distribution-access";
+import { findDistributableSurvey, importedRosterLocked } from "@/lib/distribution-access";
 import { deleteRespondentsBySurvey, existingStudentNos, listRespondents, replaceRoster } from "@/lib/respondents";
 import { countResponses, deleteResponses, respondedStudentNos } from "@/lib/responses";
 import { isStudentNoFormat, parseRosterInput } from "@/lib/roster";
@@ -39,6 +39,8 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     const access = await findDistributableSurvey(session, surveyId);
     if (access.error) return access.error;
+    const locked = importedRosterLocked(access.survey);
+    if (locked) return locked;
 
     const incoming = new Set(parsed.value.map((student) => student.studentNo));
     const leaving = (await existingStudentNos(surveyId)).filter((studentNo) => !incoming.has(studentNo));
@@ -76,6 +78,8 @@ export async function DELETE(request: Request, context: RouteContext) {
   try {
     const access = await findDistributableSurvey(session, surveyId);
     if (access.error) return access.error;
+    const locked = importedRosterLocked(access.survey);
+    if (locked) return locked;
     if (access.survey.status === "open") {
       return NextResponse.json(
         { error: "신청 중에는 명단을 삭제할 수 없습니다. 먼저 마감하거나 준비 상태로 되돌려 주세요." },

@@ -14,6 +14,7 @@ export function DistributionStatusCard({
   timing,
   respondentCount,
   responseCount,
+  imported = false,
 }: {
   surveyId: string;
   surveyUrl: string;
@@ -21,6 +22,7 @@ export function DistributionStatusCard({
   timing: SurveyTiming;
   respondentCount: number;
   responseCount: number;
+  imported?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<Action | null>(null);
@@ -67,7 +69,9 @@ export function DistributionStatusCard({
         </span>
       </div>
       <p className="mt-2 text-sm text-zinc-600">
-        {status === "preparing"
+        {imported
+          ? "timetable_form에서 가져온 마감 조사입니다. 학생에게 배포하거나 다시 열지 않고 응답 확인과 반 편성을 진행합니다."
+          : status === "preparing"
           ? "배포를 시작하면 학생이 설문 주소로 접속해 응답할 수 있습니다. 시작한 뒤에는 선택과목 편성과 설문지 양식을 수정할 수 없습니다."
           : status === "open"
             ? "학생들이 응답하고 있습니다. 마감하면 더 이상 제출하거나 수정할 수 없습니다."
@@ -79,7 +83,12 @@ export function DistributionStatusCard({
         </p>
       ) : null}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {status === "preparing" ? (
+        {imported ? (
+          <span className="rounded-lg bg-violet-50 px-3 py-2 text-sm font-medium text-violet-700">
+            엑셀에서 가져옴 · 배포 단계 생략
+          </span>
+        ) : null}
+        {!imported && status === "preparing" ? (
           <button
             type="button"
             disabled={busy !== null || respondentCount === 0}
@@ -91,7 +100,7 @@ export function DistributionStatusCard({
             {busy === "open" ? "시작 중…" : "배포 시작"}
           </button>
         ) : null}
-        {status === "open" ? (
+        {!imported && status === "open" ? (
           <button
             type="button"
             disabled={busy !== null}
@@ -101,7 +110,7 @@ export function DistributionStatusCard({
             {busy === "close" ? "마감 중…" : "마감"}
           </button>
         ) : null}
-        {status === "closed" ? (
+        {!imported && status === "closed" ? (
           <button
             type="button"
             disabled={busy !== null}
@@ -111,13 +120,15 @@ export function DistributionStatusCard({
             {busy === "reopen" ? "여는 중…" : "다시 열기"}
           </button>
         ) : null}
-        <CloseScheduleButton
-          surveyId={surveyId}
-          status={status}
-          timing={timing}
-          className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        />
-        {status === "open" || status === "closed" ? (
+        {!imported ? (
+          <CloseScheduleButton
+            surveyId={surveyId}
+            status={status}
+            timing={timing}
+            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          />
+        ) : null}
+        {!imported && (status === "open" || status === "closed") ? (
           <>
             <a
               href={surveyUrl}

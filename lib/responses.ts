@@ -93,6 +93,29 @@ export async function listResponses(surveyId: string) {
   return collection.find({ surveyId }, { projection: { _id: 0 } }).toArray();
 }
 
+/** 새로 만든 가져오기 조사에 검사를 마친 응답을 한 번에 넣는다. */
+export async function insertImportedResponses(
+  surveyId: string,
+  responses: { studentNo: string; answers: ResponseAnswer[] }[],
+) {
+  if (responses.length === 0) return 0;
+  const collection = await responsesCollection();
+  const now = new Date().toISOString();
+  const result = await collection.insertMany(
+    responses.map((response) => ({
+      surveyId,
+      studentNo: response.studentNo,
+      answers: response.answers,
+      submittedAt: now,
+      updatedAt: now,
+      revision: 1,
+      editedBy: "teacher" as const,
+      history: [],
+    })),
+  );
+  return result.insertedCount;
+}
+
 export async function countResponses(surveyId: string) {
   const collection = await responsesCollection();
   return collection.countDocuments({ surveyId });

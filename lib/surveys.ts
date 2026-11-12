@@ -287,3 +287,53 @@ export async function createSurvey(input: {
   }
   return survey;
 }
+
+/** timetable_form에서 편성·설문·응답을 바로 만들 때 쓸 마감 상태 조사 본문을 저장한다. */
+export async function createImportedSurvey(input: {
+  ownerId: string;
+  school: string;
+  academicYear: number;
+  grade: number;
+  semester: 1 | 2;
+  round: SurveyRound;
+  note: string;
+  arrangement: SurveyArrangement;
+  form: SurveyForm;
+  published: PublishedSurvey;
+  studentNoFormat: StudentNoFormat;
+}): Promise<Survey | null> {
+  const collection = await surveysCollection();
+  const now = new Date().toISOString();
+  const survey: Survey = {
+    id: randomUUID(),
+    ownerId: input.ownerId,
+    school: input.school,
+    academicYear: input.academicYear,
+    grade: input.grade,
+    semester: input.semester,
+    round: input.round,
+    note: input.note,
+    status: "closed",
+    origin: "timetable_import",
+    createdAt: now,
+    closedAt: now,
+    closedBy: "teacher",
+  };
+  try {
+    await collection.insertOne({
+      ...survey,
+      arrangement: input.arrangement,
+      form: input.form,
+      published: input.published,
+      distribution: {
+        token: randomBytes(6).toString("base64url"),
+        createdAt: now,
+        studentNoFormat: input.studentNoFormat,
+      },
+    });
+  } catch (error) {
+    if (isDuplicateKeyError(error)) return null;
+    throw error;
+  }
+  return survey;
+}

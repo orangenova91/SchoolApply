@@ -56,7 +56,7 @@ export default async function SurveyFormPage({
             학생에게 배포할 설문지의 제목과 안내문을 작성하고, 선택과목 문항의 제목을 다듬습니다.
           </p>
         </header>
-        {locked ? <EditLockNotice surveyId={survey.id} /> : null}
+        {locked ? <EditLockNotice surveyId={survey.id} imported={survey.origin === "timetable_import"} /> : null}
         <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0">
           <SurveyFormEditor
             surveyId={survey.id}

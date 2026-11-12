@@ -285,7 +285,9 @@ export function DistributionPanel({
   timing,
   hasPublished,
   responseCount,
+  imported = false,
 }: {
+  imported?: boolean;
   status: SurveyStatus;
   timing: SurveyTiming;
   hasPublished: boolean;
@@ -457,7 +459,7 @@ export function DistributionPanel({
                 : "설문에 응답할 학생의 학번과 이름을 올려 주세요."}
             </p>
           </div>
-          {respondents.length > 0 && !importing ? (
+          {respondents.length > 0 && !importing && !imported ? (
             <div className="flex gap-2">
               <button
                 type="button"
@@ -632,6 +634,7 @@ export function DistributionPanel({
         timing={timing}
         respondentCount={respondents.length}
         responseCount={responseCount}
+        imported={imported}
       />
 
       <div className="sticky bottom-0 z-10 rounded-2xl border border-zinc-200 bg-white/95 px-5 py-3 shadow-sm backdrop-blur">
